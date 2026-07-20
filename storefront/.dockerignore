@@ -1,0 +1,31 @@
+# Build context is the storefront/ monorepo root; keep it lean.
+# Source is bind-mounted at runtime for hot reload, so most of this is
+# excluded from the image build (deps are installed fresh via `npm ci`).
+
+**/node_modules
+**/.next
+**/.medusa
+.turbo
+**/.turbo
+
+.git
+.gitignore
+
+**/dist
+**/build
+**/uploads
+
+# Local env files — the compose .env is authoritative for the containers.
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Docker artifacts
+**/Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Logs / misc
+**/*.log
+npm-debug.log*
+.DS_Store
