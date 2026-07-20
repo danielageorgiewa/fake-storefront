@@ -1,0 +1,84 @@
+# Local development stack: Postgres + Medusa backend + Next.js storefront.
+# Not for production. See DOCKER.md for the one-time bootstrap steps.
+#
+# Values come from the sibling .env file (compose auto-loads it for ${...}
+# substitution, and each app service also pulls it in via env_file).
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432" # optional: exposes the DB to host tools (psql, TablePlus…)
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    ports:
+      - "9000:9000"
+    volumes:
+      # Bind-mount source for hot reload; shield installed deps / build output
+      # from the host with named volumes so they aren't clobbered by the mount.
+      - ./apps/backend:/app/apps/backend
+      - backend_root_node_modules:/app/node_modules
+      - backend_app_node_modules:/app/apps/backend/node_modules
+      - backend_medusa:/app/apps/backend/.medusa
+    healthcheck:
+      # Node is always present; avoids needing curl/wget in the slim image.
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:9000/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  storefront:
+    build:
+      context: .
+      dockerfile: apps/storefront/Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    env_file: .env
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      # Maps `medusa-backend` to the Docker host gateway so the storefront's
+      # server-side middleware reaches the host-published backend on :9000.
+      # Add `127.0.0.1 medusa-backend` to your /etc/hosts so the browser
+      # resolves the same URL too. See DOCKER.md.
+      - "medusa-backend:host-gateway"
+    volumes:
+      - ./apps/storefront:/app/apps/storefront
+      - storefront_root_node_modules:/app/node_modules
+      - storefront_app_node_modules:/app/apps/storefront/node_modules
+      - storefront_next:/app/apps/storefront/.next
+
+volumes:
+  pgdata:
+  backend_root_node_modules:
+  backend_app_node_modules:
+  backend_medusa:
+  storefront_root_node_modules:
+  storefront_app_node_modules:
+  storefront_next:
