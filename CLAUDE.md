@@ -93,6 +93,31 @@ design:
   `skeletons`). `lib/context`, `lib/hooks`, `lib/util` hold shared client state
   and helpers.
 
+## VAT / tax architecture
+
+Per-country VAT runs through **Medusa's Tax Module only** — never add tax math to
+storefront code; read Medusa's computed fields. Two rules coexist:
+
+- **Destination-based settlement (final):** VAT is settled from the cart's
+  **shipping-address `country_code`**, not the URL. Medusa recomputes tax lines
+  whenever the address changes (`setAddresses` → `updateCart` → tag revalidation
+  in `lib/data/cart.ts`). This implements the EU destination principle (OSS): a
+  Spanish delivery is 21% even if the order started on `/fr`.
+- **Context-based display (estimate):** catalog/cart prices are shown
+  VAT-inclusive for the **browsing** country. `lib/data/products.ts` passes
+  `country_code` to `/store/products`, so Medusa returns
+  `calculated_amount_with_tax`; `lib/util/get-product-price.ts` prefers that
+  inclusive amount. Before a shipping address exists, `cart-totals` labels VAT as
+  **"VAT (est.)"** (driven by `cart.shipping_address?.address_1`).
+
+Rates live in the backend: seeded per-country in
+`apps/backend/src/migration-scripts/initial-data-seed.ts`, backfilled onto an
+existing DB by the idempotent `apps/backend/src/scripts/setup-vat.ts` (run via
+`npx medusa exec`). Both carry a **provider seam** comment: production would swap
+static rates for a tax provider (Stripe Tax, Avalara) via the Tax Module provider
+interface. The system/manual payment provider (`pp_system_default`) completes
+checkout with no real payment.
+
 ## Note on the top-level README
 
 The repo-root `README.md` describes an aspirational goal (French/Spanish

@@ -35,7 +35,13 @@ const CartDropdown = ({
       return acc + item.quantity
     }, 0) || 0
 
-  const subtotal = cartState?.subtotal ?? 0
+  // Show a VAT-inclusive estimated total in the mini-cart, consistent with the
+  // catalog (which displays tax-inclusive prices for the browsing country). This
+  // is an estimate keyed on the cart's current country; the authoritative tax is
+  // settled from the shipping address at checkout (destination principle). No
+  // shipping method is selected here yet, so `total` is the items' inclusive sum.
+  const taxTotal = cartState?.tax_total ?? 0
+  const total = cartState?.total ?? 0
   const itemRef = useRef<number>(totalItems || 0)
 
   const timedOpen = () => {
@@ -175,22 +181,35 @@ const CartDropdown = ({
                     ))}
                 </div>
                 <div className="p-4 flex flex-col gap-y-4 text-small-regular">
-                  <div className="flex items-center justify-between">
-                    <span className="text-ui-fg-base font-semibold">
-                      Subtotal{" "}
-                      <span className="font-normal">(excl. taxes)</span>
-                    </span>
-                    <span
-                      className="text-large-semi"
-                      data-testid="cart-subtotal"
-                      data-value={subtotal}
-                    >
+                  <div className="flex items-center justify-between text-ui-fg-subtle">
+                    <span>VAT (est.)</span>
+                    <span data-testid="cart-taxes" data-value={taxTotal}>
                       {convertToLocale({
-                        amount: subtotal,
+                        amount: taxTotal,
                         currency_code: cartState.currency_code,
                       })}
                     </span>
                   </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-ui-fg-base font-semibold">
+                      Total{" "}
+                      <span className="font-normal">(incl. est. taxes)</span>
+                    </span>
+                    <span
+                      className="text-large-semi"
+                      data-testid="cart-total"
+                      data-value={total}
+                    >
+                      {convertToLocale({
+                        amount: total,
+                        currency_code: cartState.currency_code,
+                      })}
+                    </span>
+                  </div>
+                  <p className="text-ui-fg-muted txt-small">
+                    Final tax is calculated at checkout based on your shipping
+                    address.
+                  </p>
                   <LocalizedClientLink href="/cart" passHref>
                     <Button
                       className="w-full"

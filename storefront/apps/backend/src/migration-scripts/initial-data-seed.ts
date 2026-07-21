@@ -112,10 +112,33 @@ export default async function initial_data_seed({
   logger.info("Finished seeding regions.");
 
   logger.info("Seeding tax regions...");
+  // Standard VAT rate per country (percentage). Medusa's tax engine selects the
+  // tax region from the cart's shipping-address country_code, so these per-country
+  // rates are what make /fr charge 20% and /es charge 21% for the same product.
+  //
+  // PROVIDER SEAM: these are manually-managed static rates, fine for an MVP. In
+  // production you would instead register a tax provider (Stripe Tax, Avalara,
+  // TaxJar) implementing Medusa's Tax Module provider interface, set per tax
+  // region via `provider_id`, so rates/nexus are resolved live at calculation
+  // time instead of hardcoded here. See docs: Tax Module > Tax Provider.
+  const vatRates: Record<string, number> = {
+    fr: 20,
+    es: 21,
+    gb: 20,
+    de: 19,
+    dk: 25,
+    se: 25,
+    it: 22,
+  };
   await createTaxRegionsWorkflow(container).run({
     input: countries.map((country_code) => ({
       country_code,
       provider_id: "tp_system",
+      default_tax_rate: {
+        name: `${country_code.toUpperCase()} VAT`,
+        rate: vatRates[country_code],
+        code: "VAT",
+      },
     })),
   });
   logger.info("Finished seeding tax regions.");

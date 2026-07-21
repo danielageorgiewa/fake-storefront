@@ -59,7 +59,10 @@ export async function getOrSetCart(countryCode: string) {
     throw new Error(`Region not found for country code: ${countryCode}`)
   }
 
-  let cart = await retrieveCart(undefined, "id,region_id")
+  let cart = await retrieveCart(
+    undefined,
+    "id,region_id,*shipping_address"
+  )
 
   const headers = {
     ...(await getAuthHeaders()),
@@ -68,7 +71,15 @@ export async function getOrSetCart(countryCode: string) {
   if (!cart) {
     const locale = await getLocale()
     const cartResp = await sdk.store.cart.create(
-      { region_id: region.id, locale: locale || undefined },
+      {
+        region_id: region.id,
+        locale: locale || undefined,
+        // Seed the shipping-address country from the storefront's country segment
+        // so Medusa's tax engine applies the correct per-country VAT immediately
+        // (e.g. 20% on /fr, 21% on /es), before the checkout address step. The
+        // address step later overrides this with the customer's full address.
+        shipping_address: { country_code: countryCode },
+      },
       {},
       headers
     )
@@ -82,6 +93,31 @@ export async function getOrSetCart(countryCode: string) {
 
   if (cart && cart?.region_id !== region.id) {
     await sdk.store.cart.update(cart.id, { region_id: region.id }, {}, headers)
+    const cartCacheTag = await getCacheTag("carts")
+    revalidateTag(cartCacheTag)
+  }
+
+  // Keep the cart's estimate tax country in sync when switching between countries
+  // of the same region (e.g. /fr -> /es, both in "Europe"), where region_id is
+  // unchanged so the block above doesn't fire. Only do this while the customer
+  // hasn't entered a real shipping address yet (no address_1) to avoid clobbering
+  // it during checkout. Passing region_id alongside forces Medusa to fully
+  // re-price the cart so existing line items' VAT recomputes for the new country,
+  // not just items added afterwards.
+  if (
+    cart &&
+    cart.shipping_address?.country_code !== countryCode &&
+    !cart.shipping_address?.address_1
+  ) {
+    await sdk.store.cart.update(
+      cart.id,
+      {
+        region_id: region.id,
+        shipping_address: { country_code: countryCode },
+      },
+      {},
+      headers
+    )
     const cartCacheTag = await getCacheTag("carts")
     revalidateTag(cartCacheTag)
   }
@@ -376,6 +412,18 @@ export async function setAddresses(currentState: unknown, formData: FormData) {
         province: formData.get("billing_address.province"),
         phone: formData.get("billing_address.phone"),
       }
+
+    // Destination principle: settle VAT from the shipping address just entered.
+    // Passing region_id in the same update forces Medusa to fully re-price the
+    // cart and recompute each line item's tax lines against the new destination.
+    // Without it, an address-only update recomputes shipping tax but leaves item
+    // tax frozen at the browse-time country — the OSS "ship elsewhere, pay less
+    // VAT" loophole. See the API investigation in the VAT design notes.
+    const existingCart = await retrieveCart(undefined, "id,region_id")
+    if (existingCart?.region_id) {
+      data.region_id = existingCart.region_id
+    }
+
     await updateCart(data)
   } catch (e: any) {
     return e.message
@@ -439,7 +487,21 @@ export async function updateRegion(countryCode: string, currentPath: string) {
   }
 
   if (cartId) {
-    await updateCart({ region_id: region.id })
+    // Carry the cart across the locale switch (never cleared). Re-point the
+    // region, and — so the cart re-prices VAT for the newly selected country
+    // (fr <-> es share one region, so region_id alone wouldn't change) — also
+    // move the estimate tax country. Guard on address_1 so we never overwrite a
+    // real shipping address the customer already entered at checkout; from then
+    // on VAT is settled from that destination, not the browsing country.
+    const existing = await retrieveCart(
+      cartId,
+      "id,shipping_address.address_1"
+    )
+    const update: HttpTypes.StoreUpdateCart = { region_id: region.id }
+    if (!existing?.shipping_address?.address_1) {
+      update.shipping_address = { country_code: countryCode }
+    }
+    await updateCart(update)
     const cartCacheTag = await getCacheTag("carts")
     revalidateTag(cartCacheTag)
   }

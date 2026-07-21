@@ -69,6 +69,12 @@ export const listProducts = async ({
           limit,
           offset,
           region_id: region?.id,
+          // Pass the browsing country as the tax context so Medusa returns
+          // VAT-inclusive amounts (calculated_amount_with_tax) for that country
+          // — e.g. 20% on /fr, 21% on /es. This is a display estimate; the
+          // authoritative tax is settled from the shipping address at checkout.
+          // Falls back to the region's first country when only a region is known.
+          country_code: countryCode ?? region?.countries?.[0]?.iso_2,
           fields:
             "*variants.calculated_price,+variants.inventory_quantity,*variants.images,*variants.options,+metadata,+tags,",
           ...queryParams,

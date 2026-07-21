@@ -6,6 +6,15 @@ type VariantWithPrice = HttpTypes.StoreProductVariant & {
   calculated_price?: {
     calculated_amount: number
     original_amount: number
+    // VAT-inclusive amounts, computed by Medusa's tax engine when the product
+    // query carries a `country_code` tax context (see lib/data/products.ts).
+    // Used for EU B2C display pricing so /fr shows the 20%-inclusive price and
+    // /es the 21%-inclusive price for the same base amount. These are display
+    // *estimates* keyed on the browsing country; the authoritative tax is
+    // settled from the shipping address at checkout (destination principle).
+    calculated_amount_with_tax?: number
+    original_amount_with_tax?: number
+    is_calculated_price_tax_inclusive?: boolean
     currency_code: string
     calculated_price: {
       price_list_type: string
@@ -18,22 +27,32 @@ export const getPricesForVariant = (variant: VariantWithPrice) => {
     return null
   }
 
+  const price = variant.calculated_price
+
+  // Prefer the tax-inclusive amount when the tax engine provided one; fall back
+  // to the raw amount (e.g. when no country tax context was supplied). No tax
+  // math happens here — the inclusive figure comes straight from Medusa.
+  const calculatedDisplayAmount =
+    price.calculated_amount_with_tax ?? price.calculated_amount
+  const originalDisplayAmount =
+    price.original_amount_with_tax ?? price.original_amount
+
   return {
-    calculated_price_number: variant.calculated_price.calculated_amount,
+    calculated_price_number: calculatedDisplayAmount,
     calculated_price: convertToLocale({
-      amount: variant.calculated_price.calculated_amount,
-      currency_code: variant.calculated_price.currency_code,
+      amount: calculatedDisplayAmount,
+      currency_code: price.currency_code,
     }),
-    original_price_number: variant.calculated_price.original_amount,
+    original_price_number: originalDisplayAmount,
     original_price: convertToLocale({
-      amount: variant.calculated_price.original_amount,
-      currency_code: variant.calculated_price.currency_code,
+      amount: originalDisplayAmount,
+      currency_code: price.currency_code,
     }),
-    currency_code: variant.calculated_price.currency_code,
-    price_type: variant.calculated_price.calculated_price.price_list_type,
+    currency_code: price.currency_code,
+    price_type: price.calculated_price.price_list_type,
     percentage_diff: getPercentageDiff(
-      variant.calculated_price.original_amount,
-      variant.calculated_price.calculated_amount
+      originalDisplayAmount,
+      calculatedDisplayAmount
     ),
   }
 }
