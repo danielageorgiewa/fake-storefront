@@ -1,18 +1,17 @@
 #!/usr/bin/env sh
 # Backend container startup: run DB migrations (idempotent) before launching the
-# server, so the schema is always current on `docker compose up`. Optionally seed
-# sample data on first boot with SEED_ON_START=true.
+# server, so the schema is always current on `docker compose up`.
+#
+# `medusa db:migrate` also runs tracked data-migration scripts under
+# src/migration-scripts/ — which includes initial-data-seed.ts — so the database
+# is migrated AND seeded (regions, products, etc.) on first boot, exactly once.
+# No separate seed step is needed.
 set -e
 
 cd /app/apps/backend
 
-echo "→ Running database migrations…"
+echo "→ Running database migrations (and first-run data seed)…"
 npx medusa db:migrate
-
-if [ "$SEED_ON_START" = "true" ]; then
-  echo "→ Seeding sample data…"
-  npx medusa exec ./src/migration-scripts/initial-data-seed.ts
-fi
 
 cd /app
 exec "$@"

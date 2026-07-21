@@ -42,7 +42,10 @@ The storefront **will not start** without `NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY`
 the backend — so bring the backend up first:
 
 ```bash
-# Start Postgres + backend (migrations run automatically on backend startup)
+# Start Postgres + backend. On startup the entrypoint runs `medusa db:migrate`,
+# which applies the schema AND runs the first-run data seed (regions, products,
+# etc.) via src/migration-scripts/initial-data-seed.ts — so no separate seed
+# step is needed; the storefront will have content out of the box.
 docker compose up -d postgres backend
 
 # Watch until the backend is healthy / listening on :9000
@@ -50,10 +53,6 @@ docker compose logs -f backend
 
 # Create an admin user for the dashboard
 docker compose exec backend npx medusa user -e admin@test.com -p supersecret
-
-# Seed sample data (regions, products, etc.) so the storefront has content.
-# (Or set SEED_ON_START=true in .env before the first `up` to do this automatically.)
-docker compose exec backend npx medusa exec ./src/migration-scripts/initial-data-seed.ts
 ```
 
 Then grab the publishable key:
