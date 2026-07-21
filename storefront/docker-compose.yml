@@ -29,8 +29,23 @@ services:
       postgres:
         condition: service_healthy
     env_file: .env
+    environment:
+      # Admin dashboard HMR (Vite) in `medusa develop`. Assets are served on
+      # 9000, but the Vite HMR WebSocket runs on a SEPARATE port that is random
+      # per run (via get-port) unless HMR_PORT is set — so the admin renders a
+      # white page in Docker because the browser can't reach that port. Pin it,
+      # bind it on all interfaces, and point the browser at the published port.
+      # Pin the HMR port (was random via get-port, e.g. 35475) and expose it.
+      # NB: do NOT set HMR_HOST — Vite uses it to BIND the ws server, so
+      # HMR_HOST=localhost would bind it to ::1 (unreachable via Docker publish).
+      # Left unset, Vite binds the ws on all interfaces; the browser still
+      # defaults its connect host to the page origin (localhost).
+      HMR_PORT: "24678"         # fixed HMR port
+      HMR_CLIENT_PORT: "24678"  # port the browser connects to = published port
+      HMR_PROTOCOL: "ws"
     ports:
       - "9000:9000"
+      - "24678:24678" # Vite admin HMR WebSocket (see HMR_* above)
     volumes:
       # Bind-mount source for hot reload; shield installed deps / build output
       # from the host with named volumes so they aren't clobbered by the mount.

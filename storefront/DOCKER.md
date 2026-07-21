@@ -51,8 +51,8 @@ docker compose up -d postgres backend
 # Watch until the backend is healthy / listening on :9000
 docker compose logs -f backend
 
-# Create an admin user for the dashboard
-docker compose exec backend npx medusa user -e admin@test.com -p supersecret
+# Create an admin user for the dashboard (run from the Medusa project dir)
+docker compose exec -w /app/apps/backend backend npx medusa user -e admin@test.com -p supersecret
 ```
 
 Then grab the publishable key:
