@@ -13,9 +13,14 @@ type CartTotalsProps = {
     shipping_subtotal?: number | null
     discount_subtotal?: number | null
   }
+  // When true, VAT is a display estimate based on the browsing country because
+  // no shipping address has been entered yet. Once an address is set at
+  // checkout, Medusa settles VAT from the destination and this becomes the
+  // authoritative figure. See lib/data/cart.ts (destination principle).
+  taxEstimated?: boolean
 }
 
-const CartTotals: React.FC<CartTotalsProps> = ({ totals }) => {
+const CartTotals: React.FC<CartTotalsProps> = ({ totals, taxEstimated }) => {
   const {
     currency_code,
     total,
@@ -57,7 +62,9 @@ const CartTotals: React.FC<CartTotalsProps> = ({ totals }) => {
           </div>
         )}
         <div className="flex justify-between">
-          <span className="flex gap-x-1 items-center ">Taxes</span>
+          <span className="flex gap-x-1 items-center ">
+            {taxEstimated ? "VAT (est.)" : "VAT"}
+          </span>
           <span data-testid="cart-taxes" data-value={tax_total || 0}>
             {convertToLocale({ amount: tax_total ?? 0, currency_code })}
           </span>

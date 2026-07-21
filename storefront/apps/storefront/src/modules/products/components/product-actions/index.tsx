@@ -75,6 +75,19 @@ export default function ProductActions({
     })
   }, [product.variants, options])
 
+  // Action-naming label for when no variant is resolved yet. Dynamic when a
+  // single option remains unchosen ("Select a size"), generic otherwise. This
+  // is distinct from a genuine zero-inventory state, which shows "Out of stock".
+  const selectOptionsLabel = useMemo(() => {
+    const unselected = (product.options || []).filter(
+      (option) => !options[option.id]
+    )
+    if (unselected.length === 1 && unselected[0].title) {
+      return `Select a ${unselected[0].title.toLowerCase()}`
+    }
+    return "Choose your options"
+  }, [product.options, options])
+
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString())
     const value = isValidVariant ? selectedVariant?.id : null
@@ -176,9 +189,9 @@ export default function ProductActions({
           isLoading={isAdding}
           data-testid="add-product-button"
         >
-          {!selectedVariant && !options
-            ? "Select variant"
-            : !inStock || !isValidVariant
+          {!selectedVariant
+            ? selectOptionsLabel
+            : !inStock
             ? "Out of stock"
             : "Add to cart"}
         </Button>
@@ -188,6 +201,7 @@ export default function ProductActions({
           options={options}
           updateOptions={setOptionValue}
           inStock={inStock}
+          selectOptionsLabel={selectOptionsLabel}
           handleAddToCart={handleAddToCart}
           isAdding={isAdding}
           show={!inView}
