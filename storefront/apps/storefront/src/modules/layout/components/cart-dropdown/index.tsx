@@ -35,13 +35,19 @@ const CartDropdown = ({
       return acc + item.quantity
     }, 0) || 0
 
-  // Show a VAT-inclusive estimated total in the mini-cart, consistent with the
-  // catalog (which displays tax-inclusive prices for the browsing country). This
-  // is an estimate keyed on the cart's current country; the authoritative tax is
-  // settled from the shipping address at checkout (destination principle). No
-  // shipping method is selected here yet, so `total` is the items' inclusive sum.
-  const taxTotal = cartState?.tax_total ?? 0
-  const total = cartState?.total ?? 0
+  // Mini-cart shows an items-only, VAT-inclusive estimate — consistent with the
+  // catalog (tax-inclusive prices for the browsing country) and, crucially,
+  // auditable: `item_total` is exactly the sum of the per-line prices rendered
+  // above. We deliberately read `item_total` rather than cart `total`, which
+  // folds in shipping (cost + its VAT) once a shipping method is selected — that
+  // would put a hidden component in a total with no shipping line to explain it.
+  // VAT isn't broken out here: it's already inside the inclusive line prices, so
+  // a separate line above the total reads as additive (12 + 2 ≠ 12); the full
+  // decomposition lives on the checkout page. Pre-checkout surfaces must not
+  // assume a known shipping cost (shipping may move to a third-party rate
+  // provider); the authoritative tax is settled from the shipping address at
+  // checkout (destination principle).
+  const total = cartState?.item_total ?? 0
   const itemRef = useRef<number>(totalItems || 0)
 
   const timedOpen = () => {
@@ -181,15 +187,6 @@ const CartDropdown = ({
                     ))}
                 </div>
                 <div className="p-4 flex flex-col gap-y-4 text-small-regular">
-                  <div className="flex items-center justify-between text-ui-fg-subtle">
-                    <span>VAT (est.)</span>
-                    <span data-testid="cart-taxes" data-value={taxTotal}>
-                      {convertToLocale({
-                        amount: taxTotal,
-                        currency_code: cartState.currency_code,
-                      })}
-                    </span>
-                  </div>
                   <div className="flex items-center justify-between">
                     <span className="text-ui-fg-base font-semibold">
                       Total{" "}
@@ -206,10 +203,9 @@ const CartDropdown = ({
                       })}
                     </span>
                   </div>
-                  <p className="text-ui-fg-muted txt-small">
-                    Final tax is calculated at checkout based on your shipping
-                    address.
-                  </p>
+                  <div className="flex items-center justify-between text-ui-fg-muted txt-small">
+                    <span>Shipping + final tax calculated at checkout</span>
+                  </div>
                   <LocalizedClientLink href="/cart" passHref>
                     <Button
                       className="w-full"
