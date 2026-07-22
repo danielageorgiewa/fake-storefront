@@ -40,6 +40,19 @@ math in the storefront. Two complementary rules apply:
 Carts persist across `/es` ↔ `/fr` switches and simply re-price in the new
 context.
 
+**Browse-context control.** Switching browse country is done solely through the
+nav **LocaleSwitcher**. A second control — a side-menu `CountrySelect` flag
+dropdown — was removed as redundant: both did the exact same thing
+(`updateRegion`), and browse-context currently only affects the *displayed* VAT
+estimate, since every country served shares a single region, currency, and
+catalog, and the final tax is settled from the shipping address at checkout.
+Keeping one control avoids duplicate surface area. (The LocaleSwitcher is also
+rendered inside the mobile side menu, since the nav copy is desktop-only.) A
+dedicated context picker becomes necessary again **only if** regions or catalogs
+are ever segmented per country — i.e. distinct currency, pricing, or products per
+market — at which point browse-context would drive more than a tax-display
+estimate.
+
 **Provider seam.** VAT rates are currently seeded as static per-country values
 (see `storefront/apps/backend/src/migration-scripts/initial-data-seed.ts` and
 `.../src/scripts/setup-vat.ts`). In production these would be replaced by a tax

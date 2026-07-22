@@ -3,11 +3,10 @@
 import { Popover, PopoverPanel, Transition } from "@headlessui/react"
 import useToggleState from "@lib/hooks/use-toggle-state"
 import { ArrowRightMini, XMark } from "@medusajs/icons"
-import { HttpTypes } from "@medusajs/types"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { Text, clx } from "@modules/common/components/ui"
 import { Fragment } from "react"
-import CountrySelect from "../country-select"
+import LocaleSwitcher from "../locale-switcher"
 import LanguageSelect from "../language-select"
 import { Locale } from "@lib/data/locales"
 
@@ -20,13 +19,11 @@ const SideMenuItems = {
 }
 
 type SideMenuProps = {
-  regions: HttpTypes.StoreRegion[] | null
   locales: Locale[] | null
   currentLocale: string | null
 }
 
-const SideMenu = ({ regions, locales, currentLocale }: SideMenuProps) => {
-  const countryToggleState = useToggleState()
+const SideMenu = ({ locales, currentLocale }: SideMenuProps) => {
   const languageToggleState = useToggleState()
 
   return (
@@ -108,23 +105,26 @@ const SideMenu = ({ regions, locales, currentLocale }: SideMenuProps) => {
                           />
                         </div>
                       )}
-                      <div
-                        className="flex justify-between"
-                        onMouseEnter={countryToggleState.open}
-                        onMouseLeave={countryToggleState.close}
-                      >
-                        {regions && (
-                          <CountrySelect
-                            toggleState={countryToggleState}
-                            regions={regions}
-                          />
-                        )}
-                        <ArrowRightMini
-                          className={clx(
-                            "transition-transform duration-150",
-                            countryToggleState.state ? "-rotate-90" : ""
-                          )}
-                        />
+                      {/*
+                        Browse-context is a VAT-display estimate only: the countries
+                        served share a single Medusa region, currency, and catalog,
+                        and final tax is settled from the shipping address at
+                        checkout. The old side-menu CountrySelect (a flag dropdown of
+                        every country) was therefore redundant with the nav
+                        LocaleSwitcher and was removed; LocaleSwitcher is rendered
+                        here too so mobile keeps access (the nav copy is
+                        `hidden small:flex`, desktop-only). If regions/catalogs are
+                        ever segmented per country (distinct currency/pricing/
+                        products), a richer context picker becomes necessary again.
+                      */}
+                      {/*
+                        Only shown below `small` — the exact complement of the nav
+                        LocaleSwitcher's `hidden small:flex` wrapper — so desktop
+                        shows the nav toggle and narrow/mobile shows this one, never
+                        both.
+                      */}
+                      <div className="flex justify-between small:hidden">
+                        <LocaleSwitcher />
                       </div>
                       <Text className="flex justify-between txt-compact-small">
                         © {new Date().getFullYear()} Medusa Store. All rights
