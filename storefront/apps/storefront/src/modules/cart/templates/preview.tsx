@@ -2,7 +2,7 @@
 
 import repeat from "@lib/util/repeat"
 import { HttpTypes } from "@medusajs/types"
-import { Table, clx } from "@modules/common/components/ui"
+import { Table, Text, clx } from "@modules/common/components/ui"
 
 import Item from "@modules/cart/components/item"
 import SkeletonLineItem from "@modules/skeletons/components/skeleton-line-item"
@@ -22,6 +22,10 @@ const ItemsPreviewTemplate = ({ cart }: ItemsTemplateProps) => {
           hasOverflow,
       })}
     >
+      {/* No column headers here (unlike the cart page table), so the line
+          prices' tax basis is declared once via this caption — keeping the
+          line-vs-subtotal relationship self-explanatory beside CartTotals. */}
+      <Text className="txt-small text-ui-fg-muted mb-2">Prices incl. VAT</Text>
       <Table>
         <Table.Body data-testid="items-table">
           {items
