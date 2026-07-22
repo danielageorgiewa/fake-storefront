@@ -66,6 +66,30 @@ Neither app runs without env files and a running Postgres database.
 Bootstrapping order matters: start the backend, migrate, create an admin user,
 grab the publishable key, then configure and start the storefront.
 
+## Docker (local dev stack)
+
+A three-service Compose stack (`storefront/docker-compose.yml`) runs the whole
+app with hot-reload bind mounts — `postgres:15` (volume `pgdata`), `backend`
+(:9000), `storefront` (:8000). These are **dev** images, not production builds.
+Full walkthrough and gotchas live in `storefront/DOCKER.md`; the essentials:
+
+- Backend startup auto-runs `medusa db:migrate`, which also fires the first-run
+  data seed — no separate seed step, and migrations re-run (idempotent) on every
+  `docker compose up`.
+- Same bootstrapping order still applies: bring up `postgres backend` first,
+  create the admin user (`docker compose exec -w /app/apps/backend backend npx
+  medusa user -e admin@test.com -p supersecret`), copy the publishable key into
+  the **root** `.env`, then start `storefront`.
+- Config comes from the root `storefront/.env` (git-ignored dev defaults), shared
+  by both app containers. Compose-provided `DATABASE_URL`/CORS/secrets win over
+  `apps/backend/.env` (Medusa's `loadEnv` won't override existing env vars), so
+  in-container the backend always talks to the `postgres` service.
+- Browser and the storefront container both reach the backend via the hostname
+  `medusa-backend` — add `127.0.0.1 medusa-backend` to `/etc/hosts` for the
+  browser; `extra_hosts` handles it inside the container.
+- `docker compose down` keeps the DB; `down -v` wipes volumes (re-seed + re-copy
+  the key). Rebuild the affected image after dependency changes so `npm ci` runs.
+
 ## Architecture
 
 **Backend (Medusa v2, `apps/backend/src/`).** Follows Medusa's framework
@@ -120,8 +144,11 @@ checkout with no real payment.
 
 ## Note on the top-level README
 
-The repo-root `README.md` describes an aspirational goal (French/Spanish
-`demo-fr`/`demo-es` storefronts, Docker packaging, ~20 sample products). The
-scaffolded code is the upstream Medusa DTC starter and does not yet implement
-that; treat the root README as intent, and `storefront/README.md` as the
-accurate setup guide (modulo the pnpm/npm discrepancy noted above).
+The repo-root `README.md` describes an aspirational goal (separate French/Spanish
+`demo-fr`/`demo-es` storefronts, ~20 sample products). Those are **not** built:
+there is a single multi-region storefront app (regions/countries are data-driven
+via `[countryCode]`), not per-country apps. Docker packaging described there,
+however, **is** now implemented (see the Docker section above). Treat the root
+README as intent, `storefront/README.md` as the accurate setup guide (modulo the
+pnpm/npm discrepancy noted above), and `storefront/DOCKER.md` as authoritative
+for the Compose workflow.
