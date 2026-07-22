@@ -34,7 +34,7 @@ export default async function repairInventory({ container }: ExecArgs) {
 
   const stockLocation = stockLocations[0];
   const linkedSalesChannelIds = new Set(
-    (stockLocation.sales_channels ?? []).map((sc: { id: string }) => sc.id)
+    (stockLocation.sales_channels ?? []).map((sc) => sc?.id)
   );
 
   // --- Ensure the stock location is linked to the sales channel(s) ---
@@ -76,9 +76,9 @@ export default async function repairInventory({ container }: ExecArgs) {
   });
 
   const itemsMissingLevel = inventoryItems.filter(
-    (item: { location_levels?: { location_id: string }[] }) =>
-      !(item.location_levels ?? []).some(
-        (lvl) => lvl.location_id === stockLocation.id
+    (item) =>
+      !(item?.location_levels ?? []).some(
+        (lvl) => lvl?.location_id === stockLocation.id
       )
   );
 

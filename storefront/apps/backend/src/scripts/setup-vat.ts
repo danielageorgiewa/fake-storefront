@@ -61,7 +61,7 @@ export default async function setupVat({ container }: ExecArgs) {
     }
 
     const existingDefault = (region.tax_rates ?? []).find(
-      (r: { is_default?: boolean }) => r.is_default
+      (r) => r?.is_default
     );
 
     if (existingDefault) {

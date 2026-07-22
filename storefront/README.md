@@ -152,6 +152,22 @@ The storefront is configured via environment variables in `apps/storefront/.env.
 | `NEXT_PUBLIC_BASE_URL` | Base URL of the storefront | `https://localhost:8000` |
 | `NEXT_PUBLIC_STRIPE_KEY` | Stripe publishable key (optional) | — |
 
+## Continuous Integration
+
+`.github/workflows/ci.yml` runs on every pull request and every push to `main`.
+On Node 20 it runs `npm ci` in this `storefront/` workspace and then builds the
+**backend** (`medusa build`) — a no-database compile check that catches build
+breakage before merge.
+
+- The env values in the workflow (e.g. `NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY`) are
+  **build-time stubs, not real credentials** — CI has no backend to talk to.
+- The **storefront is not built or linted in CI yet**. Its `next build` runs
+  `generateStaticParams` for the collections/categories routes, which fetch the
+  Store API at build time and need a live backend that this DB-less iteration
+  doesn't provision; `next lint` is separately broken (deprecated in Next 15, and
+  the root `ajv` override breaks `@eslint/eslintrc`). Add a storefront job in a
+  later iteration once CI stands up a backend service.
+
 ## Resources
 
 - [Medusa Documentation](https://docs.medusajs.com)
